@@ -29,14 +29,10 @@ public class DirectionalLight : MonoBehaviour
     RenderTexture? shadowMap;
     Matrix4x4 depthMVP;
 
-    public void OnEnable()
+    public void Update()
     {
-        Graphics.UpdateShadowmaps += UpdateShadowmap;
-    }
-
-    public void OnDisable()
-    {
-        Graphics.UpdateShadowmaps -= UpdateShadowmap;
+        // Update shadowmap every frame
+        UpdateShadowmap();
     }
 
     public void OnRenderObject()

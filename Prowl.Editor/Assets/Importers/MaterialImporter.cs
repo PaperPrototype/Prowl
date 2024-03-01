@@ -128,7 +128,7 @@ namespace Prowl.Editor.Assets
                                     var thumbnail = Application.AssetProvider.LoadAsset<Texture2D>(tex);
                                     var cPos = ImGui.GetCursorScreenPos();
                                     ImGui.SetCursorScreenPos(new System.Numerics.Vector2(cPos.X, cPos.Y + 50));
-                                    ImGui.Image(new ImTextureID((nint)thumbnail.Handle), new System.Numerics.Vector2(50, -50));
+                                    ImGui.Image(new ImTextureID((nint)thumbnail.Internal), new System.Numerics.Vector2(50, -50));
                                     ImGui.SetCursorScreenPos(cPos);
                                     if (ImGui.Selectable("##" + path, false, new System.Numerics.Vector2(50, 50)))
                                         AssetDatabase.Ping(tex.AssetID);

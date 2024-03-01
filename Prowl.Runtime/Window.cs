@@ -60,6 +60,7 @@ namespace Prowl.Runtime
             options.VSync = VSync;
             var api = new GraphicsAPI(ContextAPI.OpenGL, ContextProfile.Core, ContextFlags.ForwardCompatible, new APIVersion(4, 1));
             options.API = api;
+            options.ShouldSwapAutomatically = false;
             InternalWindow = Silk.NET.Windowing.Window.Create(options);
 
             InternalWindow.Load += OnLoad;

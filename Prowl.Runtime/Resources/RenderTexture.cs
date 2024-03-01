@@ -61,7 +61,7 @@ namespace Prowl.Runtime
                         InternalTextures[i] = new Texture2D((uint)Width, (uint)Height, false, this.textureFormats[i]);
                         InternalTextures[i].SetTextureFilters(TextureMinFilter.Linear, TextureMagFilter.Linear);
                         InternalTextures[i].SetWrapModes(TextureWrapMode.ClampToEdge, TextureWrapMode.ClampToEdge);
-                        Graphics.GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0 + i, (TextureTarget)InternalTextures[i].Type, InternalTextures[i].Handle, 0);
+                        Graphics.GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.ColorAttachment0 + i, (TextureTarget)InternalTextures[i].Type, InternalTextures[i].Internal, 0);
                     }
                     Graphics.ActivateDrawBuffers(numTextures);
                 }
@@ -70,7 +70,7 @@ namespace Prowl.Runtime
                 if (hasDepthAttachment) {
                     var depth = new Texture2D((uint)Width, (uint)Height, false, Texture.TextureImageFormat.Depth24);
                     InternalDepth = depth;
-                    Graphics.GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, TextureTarget.Texture2D, depth.Handle, 0);
+                    Graphics.GL.FramebufferTexture2D(FramebufferTarget.Framebuffer, FramebufferAttachment.DepthAttachment, TextureTarget.Texture2D, depth.Internal, 0);
 
                 }
 
@@ -104,7 +104,7 @@ namespace Prowl.Runtime
         {
             if (fboId <= 0) return;
             foreach (var texture in InternalTextures)
-                Graphics.GL.DeleteTexture(texture.Handle);
+                Graphics.GL.DeleteTexture(texture.Internal);
 
             //if(hasDepthAttachment) // Should auto dispose of Depth
             //    Graphics.GL.DeleteRenderbuffer(InternalDepth.Handle);

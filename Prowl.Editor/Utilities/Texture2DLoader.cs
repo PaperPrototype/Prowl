@@ -30,7 +30,7 @@ namespace Prowl.Editor
             try
             {
 
-                Graphics.GL.BindTexture((TextureTarget)texture.Type, texture.Handle);
+                Graphics.GL.BindTexture((TextureTarget)texture.Type, texture.Internal);
                 unsafe
                 {
                     Graphics.GL.PixelStore(PixelStoreParameter.UnpackAlignment, 1);

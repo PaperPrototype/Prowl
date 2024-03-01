@@ -1,0 +1,78 @@
+﻿using System;
+using static Prowl.Runtime.GraphicsBackend.DebugLayer.DebugGraphicsDevice;
+
+namespace Prowl.Runtime.GraphicsBackend.DebugLayer;
+
+internal sealed unsafe class DebugTexture : InternalTexture
+{
+    private int _width;
+    private int _height;
+    
+    public InternalTexture Texture;
+    
+    public override bool IsDisposed { get; protected set; }
+    
+    public override TextureDescription Description { get; set; }
+
+    public DebugTexture(TextureDescription description, void* data)
+    {
+        _width = description.Width;
+        _height = description.Height;
+        
+        Validity validity = description.Validity;
+        if (!validity.IsValid)
+            Debug.LogError(validity.Message);
+
+        int bpp = description.Format.BitsPerPixel();
+
+        int totalSize = bpp * description.ArraySize;
+
+        if (description.Width > 0)
+            totalSize *= description.Width;
+        if (description.Height > 0)
+            totalSize *= description.Height;
+        if (description.Depth > 0)
+            totalSize *= description.Depth;
+
+        Debug.Log($@"Texture info:
+    Type: {description.TextureType}
+    Width: {description.Width}
+    Height: {description.Height}
+    Depth: {description.Depth}
+    MipLevels: {description.MipLevels}
+    ArraySize: {description.ArraySize}
+    Usage: {description.Usage}
+    Format: {description.Format}
+    BitsPerPixel: {bpp}
+    VideoMemory: {totalSize}B
+    HasInitialData: {data != null}
+");
+
+        Texture = Device.CreateTexture(description, data);
+        
+        Description = Texture.Description;
+    }
+
+    public void Update(int mipLevel, int arrayIndex, int x, int y, int z, int width, int height, int depth, void* data)
+    {
+        if (IsDisposed)
+            Debug.LogError("Attempted to update a disposed texture!");
+        
+        // TODO: Calculate mip levels when description mip levels is 0.
+        if (mipLevel >= Description.MipLevels && Description.MipLevels != 0)
+            Debug.LogError("Mip level was out of range.");
+        
+        if (arrayIndex >= Description.ArraySize)
+            Debug.LogError("Array index was out of range.");
+
+        Device.UpdateTexture(Texture, mipLevel, arrayIndex, x, y, z, width, height, depth, data);
+    }
+    
+    public override void Dispose()
+    {
+        Texture.Dispose();
+        IsDisposed = Texture.IsDisposed;
+        
+        Debug.Log("Texture disposed.");
+    }
+}

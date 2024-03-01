@@ -140,12 +140,12 @@ public class GameWindow : EditorWindow
             float width = renderSize.X;
             float height = width / aspect;
             ImGui.SetCursorPosY(ImGui.GetCursorPosY() + ((renderSize.Y - height) / 2f));
-            ImGui.Image((IntPtr)RenderTarget.InternalTextures[0].Handle, new System.Numerics.Vector2(width, height), new System.Numerics.Vector2(0, 1), new System.Numerics.Vector2(1, 0));
+            ImGui.Image((IntPtr)RenderTarget.InternalTextures[0].Internal, new System.Numerics.Vector2(width, height), new System.Numerics.Vector2(0, 1), new System.Numerics.Vector2(1, 0));
         } else {
             float height = renderSize.Y;
             float width = height * aspect;
             ImGui.SetCursorPosX(ImGui.GetCursorPosX() + ((renderSize.X - width) / 2f));
-            ImGui.Image((IntPtr)RenderTarget.InternalTextures[0].Handle, new System.Numerics.Vector2(width, height), new System.Numerics.Vector2(0, 1), new System.Numerics.Vector2(1, 0));
+            ImGui.Image((IntPtr)RenderTarget.InternalTextures[0].Internal, new System.Numerics.Vector2(width, height), new System.Numerics.Vector2(0, 1), new System.Numerics.Vector2(1, 0));
         }
     }
 

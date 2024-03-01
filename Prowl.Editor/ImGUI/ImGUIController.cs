@@ -4,6 +4,7 @@ using Hexa.NET.ImNodes;
 using Hexa.NET.ImPlot;
 using Prowl.Icons;
 using Prowl.Runtime;
+using Prowl.Runtime.GraphicsBackend;
 using Silk.NET.Input;
 using Silk.NET.Maths;
 using Silk.NET.OpenGL;
@@ -14,7 +15,6 @@ namespace Prowl.Editor.ImGUI
 {
     public class ImGUIController : IDisposable
     {
-        private GL _gl;
         private IView _view;
         private IInputContext _input;
         private bool _frameBegun;
@@ -556,13 +556,13 @@ namespace Prowl.Editor.ImGUI
             _gl.GetInteger(GLEnum.TextureBinding2D, out int lastTexture);
 
             _fontTexture = new Texture2D((uint)width, (uint)height, false, Runtime.Texture.TextureImageFormat.Float4);
-            Graphics.GL.BindTexture(TextureTarget.Texture2D, _fontTexture.Handle);
+            Graphics.Device.BindTexture(TextureTarget.Texture2D, _fontTexture.Internal);
             Graphics.GL.TexSubImage2D(TextureTarget.Texture2D, 0, 0, 0, (uint)width, (uint)height, Silk.NET.OpenGL.PixelFormat.Rgba, Silk.NET.OpenGL.PixelType.UnsignedByte, pixels);
             Graphics.CheckGL();
             _fontTexture.SetTextureFilters(TextureMinFilter.Linear, TextureMagFilter.Linear);
 
             // Store our identifier
-            io.Fonts.SetTexID((IntPtr)_fontTexture.Handle);
+            io.Fonts.SetTexID((IntPtr)_fontTexture.Internal);
 
             // Restore state
             _gl.BindTexture(GLEnum.Texture2D, (uint)lastTexture);

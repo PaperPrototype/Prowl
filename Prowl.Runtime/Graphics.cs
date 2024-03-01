@@ -1,21 +1,14 @@
-﻿using Silk.NET.Maths;
+﻿using Prowl.Runtime.GraphicsBackend;
+using Silk.NET.Maths;
 using Silk.NET.OpenGL;
+
 using System;
 
 namespace Prowl.Runtime
 {
     public static class Graphics
     {
-        public static GL GL { get; internal set; }
-
-        public static int GLMajorVersion { get; private set; }
-        public static int GLMinorVersion { get; private set; }
-
-        public static BlendingFactor CustomBlendSrcFactor { get; set; }
-        public static BlendingFactor CustomBlendDstFactor { get; set; }
-        public static BlendEquationModeEXT CustomBlendEquation { get; set; }
-
-        public static event Action UpdateShadowmaps;
+        public static GraphicsDevice Device;
 
         public static Vector2 Resolution;
         public static Matrix4x4 MatView;
@@ -35,66 +28,12 @@ namespace Prowl.Runtime
         private static Material defaultMat;
         private static AssetRef<Texture2D> defaultNoise;
         internal static Vector2D<int> FrameBufferSize;
-        private static uint activeProgram;
-
-        static readonly GLEnum[] buffers =
-        {
-            GLEnum.ColorAttachment0,  GLEnum.ColorAttachment1,  GLEnum.ColorAttachment2,
-            GLEnum.ColorAttachment3,  GLEnum.ColorAttachment4,  GLEnum.ColorAttachment5,
-            GLEnum.ColorAttachment6,  GLEnum.ColorAttachment7,  GLEnum.ColorAttachment8,
-            GLEnum.ColorAttachment9,  GLEnum.ColorAttachment10, GLEnum.ColorAttachment11,
-            GLEnum.ColorAttachment12, GLEnum.ColorAttachment13, GLEnum.ColorAttachment14,
-            GLEnum.ColorAttachment15, GLEnum.ColorAttachment16, GLEnum.ColorAttachment16,
-            GLEnum.ColorAttachment17, GLEnum.ColorAttachment18, GLEnum.ColorAttachment19,
-            GLEnum.ColorAttachment20, GLEnum.ColorAttachment21, GLEnum.ColorAttachment22,
-            GLEnum.ColorAttachment23, GLEnum.ColorAttachment24, GLEnum.ColorAttachment25,
-            GLEnum.ColorAttachment26, GLEnum.ColorAttachment27, GLEnum.ColorAttachment28,
-            GLEnum.ColorAttachment29, GLEnum.ColorAttachment30, GLEnum.ColorAttachment31
-        };
-
-        public static int MaxTextureSize { get; private set; }
-        public static int MaxCubeMapTextureSize { get; private set; }
-        public static int MaxArrayTextureLayers { get; private set; }
-
-        public static int MaxRenderbufferSize { get; private set; }
-        public static int MaxFramebufferColorAttachments { get; private set; }
-        public static int MaxDrawBuffers { get; private set; }
-        public static int MaxSamples { get; private set; }
 
         public static void Initialize()
         {
-            GL = GL.GetApi(Window.InternalWindow);
-
-            unsafe
-            {
-                if (OperatingSystem.IsWindows())
-                {
-                    GL.DebugMessageCallback(DebugCallback, null);
-                    GL.Enable(EnableCap.DebugOutput);
-                    GL.Enable(EnableCap.DebugOutputSynchronous);
-
-                }
-            }
-
-            // Smooth lines
-            GL.Enable(EnableCap.LineSmooth);
-
-            GLMajorVersion = GL.GetInteger(GLEnum.MajorVersion);
-            GLMinorVersion = GL.GetInteger(GLEnum.MinorVersion);
-
-            CheckGL();
-
-            // Textures
-            MaxSamples = GL.GetInteger(GLEnum.MaxSamples);
-            MaxTextureSize = GL.GetInteger(GLEnum.MaxTextureSize);
-            MaxCubeMapTextureSize = GL.GetInteger(GLEnum.MaxCubeMapTextureSize);
-            MaxArrayTextureLayers = GL.GetInteger(GLEnum.MaxArrayTextureLayers);
-
-            MaxRenderbufferSize = GL.GetInteger(GLEnum.MaxRenderbufferSize);
-            MaxFramebufferColorAttachments = GL.GetInteger(GLEnum.MaxColorAttachments);
-            MaxDrawBuffers = GL.GetInteger(GLEnum.MaxDrawBuffers);
-
-            CheckGL();
+            var winsize = new System.Drawing.Size(Window.InternalWindow.FramebufferSize.X, Window.InternalWindow.FramebufferSize.Y);
+            // TODO: Options in Project Settings like HDR
+            Device = GraphicsDevice.CreateOpenGL(Window.InternalWindow.GLContext, winsize, false, default);
         }
 
         public static IDisposable UseBlendMode(BlendMode mode) => new ActiveBlendMode(mode);

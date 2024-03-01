@@ -31,7 +31,7 @@ namespace Prowl.Runtime
                 throw new ArgumentOutOfRangeException(nameof(size), size, "Cubemap size must be in the range (0, " + Graphics.MaxCubeMapTextureSize + "]");
 
             Size = size;
-            Graphics.GL.BindTexture((TextureTarget)Type, Handle);
+            Graphics.GL.BindTexture((TextureTarget)Type, Internal);
             Graphics.GL.TexParameter((TextureTarget)Type, TextureParameterName.TextureWrapS, (int)TextureWrapMode.ClampToEdge);
             Graphics.GL.TexParameter((TextureTarget)Type, TextureParameterName.TextureWrapT, (int)TextureWrapMode.ClampToEdge);
             Graphics.GL.TexParameter((TextureTarget)Type, TextureParameterName.TextureWrapR, (int)TextureWrapMode.ClampToEdge);
@@ -65,7 +65,7 @@ namespace Prowl.Runtime
             ValidateCubemapFace(face);
             ValidateRectOperation(rectX, rectY, rectWidth, rectHeight);
 
-            Graphics.GL.BindTexture((TextureTarget)Type, Handle);
+            Graphics.GL.BindTexture((TextureTarget)Type, Internal);
             Graphics.GL.TexSubImage2D((TextureTarget)face, 0, rectX, rectY, rectWidth, rectHeight, pixelFormat == 0 ? PixelFormat : pixelFormat, PixelType, ptr);
             Graphics.CheckGL();
         }
@@ -88,7 +88,7 @@ namespace Prowl.Runtime
             if (data.Length < rectWidth * rectHeight)
                 throw new ArgumentException("Not enough pixel data", nameof(data));
 
-            Graphics.GL.BindTexture((TextureTarget)Type, Handle);
+            Graphics.GL.BindTexture((TextureTarget)Type, Internal);
             fixed (void* ptr = data)
                 Graphics.GL.TexSubImage2D((TextureTarget)face, 0, rectX, rectY, rectWidth, rectHeight, pixelFormat == 0 ? PixelFormat : pixelFormat, PixelType, ptr);
             Graphics.CheckGL();
@@ -115,7 +115,7 @@ namespace Prowl.Runtime
         public unsafe void GetDataPtr(CubemapFace face, void* ptr, PixelFormat pixelFormat = 0)
         {
             ValidateCubemapFace(face);
-            Graphics.GL.BindTexture((TextureTarget)Type, Handle);
+            Graphics.GL.BindTexture((TextureTarget)Type, Internal);
             Graphics.GL.GetTexImage((TextureTarget)face, 0, pixelFormat == 0 ? PixelFormat : pixelFormat, PixelType, ptr);
             Graphics.CheckGL();
         }
@@ -133,7 +133,7 @@ namespace Prowl.Runtime
             if (data.Length < Size * Size)
                 throw new ArgumentException("Insufficient space to store the requested pixel data", nameof(data));
 
-            Graphics.GL.BindTexture((TextureTarget)Type, Handle);
+            Graphics.GL.BindTexture((TextureTarget)Type, Internal);
             fixed (void* ptr = data)
                 Graphics.GL.GetTexImage((TextureTarget)face, 0, pixelFormat == 0 ? PixelFormat : pixelFormat, PixelType, ptr);
             Graphics.CheckGL();
@@ -147,7 +147,7 @@ namespace Prowl.Runtime
         /// <param name="rWrapMode">The wrap mode for the R (or texture-Z) coordinate.</param>
         public void SetWrapModes(TextureWrapMode sWrapMode, TextureWrapMode tWrapMode, TextureWrapMode rWrapMode)
         {
-            Graphics.GL.BindTexture((TextureTarget)Type, Handle);
+            Graphics.GL.BindTexture((TextureTarget)Type, Internal);
             Graphics.GL.TexParameter((TextureTarget)Type, TextureParameterName.TextureWrapS, (int)sWrapMode);
             Graphics.GL.TexParameter((TextureTarget)Type, TextureParameterName.TextureWrapT, (int)tWrapMode);
             Graphics.GL.TexParameter((TextureTarget)Type, TextureParameterName.TextureWrapR, (int)rWrapMode);

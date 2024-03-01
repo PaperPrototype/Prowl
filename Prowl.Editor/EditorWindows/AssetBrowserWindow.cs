@@ -274,7 +274,7 @@ public class AssetBrowserWindow : EditorWindow {
         float thumbnailWidth = ((float)thumbnail.Width / thumbnail.Height) * thumbnailSize;
         float xOffset = ((thumbnailSize - thumbnailWidth) / 2) + 15;
         ImGui.SetCursorPos(new System.Numerics.Vector2(xOffset, 10));
-        ImGui.Image((IntPtr)thumbnail.Handle, new System.Numerics.Vector2(thumbnailWidth, thumbnailSize), System.Numerics.Vector2.UnitY, System.Numerics.Vector2.UnitX);
+        ImGui.Image((IntPtr)thumbnail.Internal, new System.Numerics.Vector2(thumbnailWidth, thumbnailSize), System.Numerics.Vector2.UnitY, System.Numerics.Vector2.UnitX);
     }
 
     private Texture2D GetEntryThumbnail(FileSystemInfo entry)

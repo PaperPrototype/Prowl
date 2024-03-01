@@ -1,16 +1,28 @@
-﻿using Silk.NET.OpenGL;
+﻿using Prowl.Runtime.GraphicsBackend;
 using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Runtime.InteropServices;
-using static Prowl.Runtime.Mesh.VertexFormat;
 
 namespace Prowl.Runtime
 {
+    public sealed class LayoutConstructor
+    {
+        public List<InputLayoutDescription> Inputs { get; private set; } = new();
+
+        public void Add(uint slot, Format format, InputType inputType)
+        {
+            int size = 0;
+            foreach (var input in Inputs)
+                size += GraphicUtils.BitsPerPixel(input.Format) / 8;
+            Inputs.Add(new InputLayoutDescription(format, (uint)size, slot, inputType));
+        }
+    }
+
     public sealed class Mesh : EngineObject, ISerializable
     {
 
-        public VertexFormat format;
+        public InputLayout format;
 
         public int vertexCount => vertices.Length;
         public int triangleCount => triangles.Length / 3;
@@ -24,20 +36,13 @@ namespace Prowl.Runtime
         public string[] boneNames;
         public (Vector3, Quaternion, Vector3)[] boneOffsets;
 
-        public Mesh() 
+        public Mesh()
         {
-            // Default Format
-            format = new([
-                new Element(VertexSemantic.Position, VertexType.Float, 3),
-                new Element(VertexSemantic.TexCoord, VertexType.Float, 2),
-                new Element(VertexSemantic.Normal, VertexType.Float, 3, 0, true),
-                new Element(VertexSemantic.Color, VertexType.Float, 3),
-                new Element(VertexSemantic.Tangent, VertexType.Float, 3),
-                new Element(VertexSemantic.BoneIndex, VertexType.UnsignedByte, 4),
-                new Element(VertexSemantic.BoneWeight, VertexType.Float, 4)
-            ]);
+            SetDefaultFormat();
         }
 
+        public GraphicsBuffer? VertexBuffer { get; private set; }
+        public GraphicsBuffer? IndexBuffer { get; private set; }
         public uint vao { get; private set; }
         public uint vbo { get; private set; }
         private int uploadedVBOSize = 0;
@@ -46,96 +51,58 @@ namespace Prowl.Runtime
 
         public unsafe void Upload()
         {
-            if (vao > 0) return; // Already loaded in, You have to Unload first!
+            if (VertexBuffer != null) return; // Already loaded in, You have to Unload first!
             ArgumentNullException.ThrowIfNull(format);
 
             ArgumentNullException.ThrowIfNull(vertices);
             if (vertices.Length == 0) throw new($"The mesh argument '{nameof(vertices)}' is empty!");
 
-            vao = Graphics.GL.GenVertexArray();
-            Graphics.GL.BindVertexArray(vao);
-            Graphics.CheckGL();
-
-            vbo  = Graphics.GL.GenBuffer();
-            Graphics.GL.BindBuffer(BufferTargetARB.ArrayBuffer, vbo);
-            Graphics.GL.BufferData(BufferTargetARB.ArrayBuffer, new ReadOnlySpan<Vertex>(vertices), BufferUsageARB.StaticDraw);
+            // Create our vertex and index buffers using the respective arrays.
+            VertexBuffer = Graphics.Device.CreateBuffer(BufferType.VertexBuffer, vertices);
             uploadedVBOSize = vertices.Length;
-
-            Graphics.CheckGL();
-            format.Bind();
-
+            IndexBuffer = triangles != null ? Graphics.Device.CreateBuffer(BufferType.IndexBuffer, triangles) : null;
             uploadedIBOSize = triangles?.Length ?? 0;
-            if (triangles != null) {
-                ibo = Graphics.GL.GenBuffer();
-                Graphics.GL.BindBuffer(BufferTargetARB.ElementArrayBuffer, ibo);
-                Graphics.GL.BufferData(BufferTargetARB.ElementArrayBuffer, new ReadOnlySpan<ushort>(triangles), BufferUsageARB.StaticDraw);
-            }
 
-            Debug.Log($"VAO: [ID {vao}] Mesh uploaded successfully to VRAM (GPU)");
-
-            Graphics.GL.BindVertexArray(0);
-            Graphics.GL.BindBuffer(BufferTargetARB.ArrayBuffer, 0);
         }
 
         // Update the data inside the VBO and IBO if it exist if not it just unloads and reuploads
         public void Update()
         {
-            if (vao <= 0) {
+            if (VertexBuffer == null) {
                 Upload();
                 return;
             }
 
-            Graphics.GL.BindVertexArray(vao);
-            Graphics.GL.BindBuffer(BufferTargetARB.ArrayBuffer, vbo);
-            if(uploadedVBOSize != vertices.Length) {
-                // Vertex count changed then reallocate it
-                Graphics.GL.BufferData(BufferTargetARB.ArrayBuffer, new ReadOnlySpan<Vertex>(vertices), BufferUsageARB.StaticDraw);
-            } else {
-                // Vertex count didnt change so just update it
-                Graphics.GL.BufferSubData(BufferTargetARB.ArrayBuffer, IntPtr.Zero, new ReadOnlySpan<Vertex>(vertices));
+            if (uploadedVBOSize != vertices.Length)
+            {
+                VertexBuffer?.Dispose();
+                VertexBuffer = Graphics.Device.CreateBuffer(BufferType.VertexBuffer, vertices);
             }
-            uploadedVBOSize = vertices.Length;
+            else
+                Graphics.Device.UpdateBuffer(VertexBuffer, 0, vertices);
 
-            if ((uploadedIBOSize > 0 && triangles == null) || (uploadedIBOSize != triangles.Length)) {
-                uploadedIBOSize = triangles?.Length ?? 0;
-
-
-                // if indices has been deleted
-                if (triangles == null) {
-                    Graphics.GL.DeleteBuffer(ibo);
-                    ibo = 0;
-                } else {
-                    // If we dont have an indices buffer create one
-                    if(ibo == 0) {
-                        ibo = Graphics.GL.GenBuffer();
-                    }
-
-                    // if indices has been changed
-                    Graphics.GL.BindBuffer(BufferTargetARB.ElementArrayBuffer, ibo);
-                    if (uploadedIBOSize != vertices.Length) {
-                        // Size changed so reallocate
-                        Graphics.GL.BufferData(BufferTargetARB.ElementArrayBuffer, new ReadOnlySpan<ushort>(triangles), BufferUsageARB.StaticDraw);
-                    } else {
-                        // Size didnt change so just update
-                        Graphics.GL.BufferSubData(BufferTargetARB.ElementArrayBuffer, IntPtr.Zero, new ReadOnlySpan<ushort>(triangles));
-                    }
-                }
+            if(triangles == null)
+            {
+                IndexBuffer?.Dispose();
+                IndexBuffer = null;
             }
-
-            Graphics.GL.BindVertexArray(0);
-            Graphics.GL.BindBuffer(BufferTargetARB.ArrayBuffer, 0);
+            else if (IndexBuffer == null || uploadedIBOSize != triangles.Length)
+            {
+                IndexBuffer?.Dispose();
+                IndexBuffer = Graphics.Device.CreateBuffer(BufferType.IndexBuffer, triangles);
+            }
+            else
+                Graphics.Device.UpdateBuffer(IndexBuffer, 0, triangles);
 
         }
 
         // Unload from memory (RAM and VRAM)
         public void Unload()
         {
-            if (vao <= 0) return; // nothing to unload
-
-            // Unload rlgl vboId data
-            Graphics.GL.DeleteVertexArray(vao);
-            vao = 0;
-            Graphics.GL.DeleteBuffer(vbo);
+            VertexBuffer?.Dispose();
+            IndexBuffer?.Dispose();
+            VertexBuffer = null;
+            IndexBuffer = null;
         }
 
         public override void OnDispose()
@@ -216,6 +183,18 @@ namespace Prowl.Runtime
                 vertices[i].Tangent /= counts[i];
         }
 
+        private void SetDefaultFormat()
+        {
+            LayoutConstructor layout = new();
+            layout.Add(0, Format.R32G32B32_Float, InputType.PerVertex);
+            layout.Add(1, Format.R32G32_Float, InputType.PerVertex);
+            layout.Add(2, Format.R32G32B32_Float, InputType.PerVertex);
+            layout.Add(3, Format.R32G32B32_Float, InputType.PerVertex);
+            layout.Add(4, Format.R32G32B32_Float, InputType.PerVertex);
+            layout.Add(5, Format.R8G8B8A8_UInt, InputType.PerVertex);
+            layout.Add(6, Format.R32G32B32A32_Float, InputType.PerVertex);
+            format = Graphics.Device.CreateInputLayout(layout.Inputs.ToArray());
+        }
         #endregion
 
         #region Create Primitives
@@ -444,7 +423,7 @@ namespace Prowl.Runtime
 
                 compoundTag.Add("Data", new ByteArrayTag(memoryStream.ToArray()));
             }
-            compoundTag.Add("Format", TagSerializer.Serialize(format, ctx));
+            // TODO: Serialize the format? Might not be needed since in editor its always the default, only time its not is when the user procedurally creates a mesh
             return compoundTag;
         }
 
@@ -499,7 +478,7 @@ namespace Prowl.Runtime
                 triangles = DeserializeArray<ushort> (reader);
 
             }
-            format = TagSerializer.Deserialize<VertexFormat>(value["Format"], ctx);
+            SetDefaultFormat();
         }
 
         // Helper method to serialize an array
@@ -545,169 +524,6 @@ namespace Prowl.Runtime
             public byte BoneIndex0, BoneIndex1, BoneIndex2, BoneIndex3;
             public float Weight0, Weight1, Weight2, Weight3;
         }
-
-        public class VertexFormat
-        {
-            public Element[] Elements;
-            public int Size;
-
-            public VertexFormat() { }
-
-            public VertexFormat(Element[] elements)
-            {
-                ArgumentNullException.ThrowIfNull(elements);
-
-                if (elements.Length == 0) throw new($"The argument '{nameof(elements)}' is null!");
-
-                Elements = elements;
-
-                foreach (var element in Elements)
-                {
-                    element.Offset = (short)Size;
-                    int s = 0;
-                    if ((int)element.Type > 5122)       s = 4 * element.Count; //Greater than short then its either a Float or Int
-                    else if ((int)element.Type > 5121)  s = 2 * element.Count; //Greater than byte then its a Short
-                    else                                s = 1 * element.Count; //Byte or Unsigned Byte
-                    Size += s;
-                    element.Stride = (short)s;
-                }
-            }
-
-            public class Element
-            {
-                public uint Semantic;
-                public VertexType Type;
-                public byte Count;
-                public short Offset; // Automatically assigned in VertexFormats constructor
-                public short Stride; // Automatically assigned in VertexFormats constructor
-                public short Divisor;
-                public bool Normalized;
-                public Element() { }
-                public Element(VertexSemantic semantic, VertexType type, byte count, short divisor = 0, bool normalized = false)
-                {
-                    Semantic = (uint)semantic;
-                    Type = type;
-                    Count = count;
-                    Divisor = divisor;
-                    Normalized = normalized;
-                }
-                public Element(uint semantic, VertexType type, byte count, short divisor = 0, bool normalized = false)
-                {
-                    Semantic = semantic;
-                    Type = type;
-                    Count = count;
-                    Divisor = divisor;
-                    Normalized = normalized;
-                }
-            }
-
-            public enum VertexSemantic { Position, TexCoord, Normal, Color, Tangent, BoneIndex, BoneWeight }
-
-            public enum VertexType { Byte = 5120, UnsignedByte = 5121, Short = 5122, Int = 5124, Float = 5126, }
-
-            public void Bind()
-            {
-                for (var i = 0; i < Elements.Length; i++) {
-                    var element = Elements[i];
-                    var index = element.Semantic;
-                    Graphics.GL.EnableVertexAttribArray(index);
-                    int offset = (int)element.Offset;
-                    unsafe {
-                        if(element.Type == VertexType.Float)
-                            Graphics.GL.VertexAttribPointer(index, element.Count, (GLEnum)element.Type, element.Normalized, (uint)Size, (void*)offset);
-                        else
-                            Graphics.GL.VertexAttribIPointer(index, element.Count, (GLEnum)element.Type, (uint)Size, (void*)offset);
-                    }
-                }
-            }
-        }
     }
 
-    //public interface IInstantiatable
-    //{
-    //    void Instantiate();
-    //}
-    //
-    //public sealed class Model : EngineObject, IInstantiatable
-    //{
-    //    public Mesh[] meshes;
-    //    public Material[] materials;
-    //    public ModelNode rootNode;        // actual model root node - base node of the model - from here we can locate any node in the chain        
-    //
-    //    public void Instantiate()
-    //    {
-    //    }
-    //
-    //    public class ModelNode
-    //    {
-    //        public string name;
-    //        public ModelNode parent;
-    //        public List<ModelNode> children = new List<ModelNode>();      
-    //
-    //        public Matrix local;
-    //        public Matrix combined;
-    //    }
-    //}
-    //
-    //public sealed class SkinModel : EngineObject, IInstantiatable
-    //{
-    //    public Mesh[] meshes;
-    //    public Material[] materials;
-    //    public ModelNode rootNode;
-    //
-    //    public List<AnimationClip> animations = new List<AnimationClip>();
-    //
-    //    public void Instantiate()
-    //    {
-    //    }
-    //
-    //    public class ModelNode
-    //    {
-    //        public string name;
-    //        public ModelNode parent;
-    //        public List<ModelNode> children = new List<ModelNode>();      
-    //
-    //        // Each mesh has a list of shader-matrices - this keeps track of which meshes these bones apply to (and the bone index)
-    //        public List<ModelBone> uniqueMeshBones = new List<ModelBone>();
-    //
-    //        public Matrix local;
-    //        public Matrix combined;
-    //    }
-    //
-    //    public class ModelBone
-    //    {
-    //        public string name;
-    //        public int meshIndex = -1;
-    //        public int boneIndex = -1;
-    //        public int numWeightedVerts = 0;
-    //        public Matrix offset;
-    //    }
-    //}
-    //
-    ///// <summary> A Animation clip with Tracks for each Bone/Node, It stores one entire animation. </summary>
-    //public class AnimationClip : EngineObject
-    //{
-    //    public double DurationInTicks;
-    //    public double DurationInSeconds;
-    //    public double DurationInSecondsAdded;
-    //    public double TicksPerSecond;
-    //
-    //    public bool HasMeshAnims;
-    //    public bool HasNodeAnims;
-    //    public List<AnimTrack> animatedNodes;
-    //}
-    //
-    ///// <summary> The Position/Rotation/Scale data for a single node in the model hierarchy for the entire animation clip </summary>
-    //public class AnimTrack
-    //{
-    //    public string nodePath = ""; // The path to the node in the model hierarchy
-    //
-    //    // Frames for this track/node
-    //    public List<double> positionTime = new List<double>();
-    //    public List<double> scaleTime = new List<double>();
-    //    public List<double> rotationTime = new List<double>();
-    //    public List<Vector3> position = new List<Vector3>();
-    //    public List<Vector3> scale = new List<Vector3>();
-    //    public List<Quaternion> rotation = new List<Quaternion>();
-    //}
 }
